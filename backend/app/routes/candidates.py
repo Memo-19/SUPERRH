@@ -2,6 +2,9 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.database import get_connection
 from app.services.matcher import calculate_match_score
 import pdfplumber
+import pytesseract
+from PIL import Image
+from pdf2image import convert_from_path
 import shutil
 import os
 
@@ -9,6 +12,44 @@ router = APIRouter()
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# مسارات مباشرة
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+POPPLER_PATH = r'C:\poppler-25.12.0\Library\bin'
+
+def extract_text_from_pdf(pdf_path: str) -> str:
+    text = ""
+
+    # محاولة 1 — pdfplumber
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                extracted = page.extract_text()
+                if extracted:
+                    text += extracted + " "
+                words = page.extract_words()
+                if words:
+                    text += " ".join([w['text'] for w in words]) + " "
+    except Exception as e:
+        print(f"pdfplumber error: {e}")
+
+    # محاولة 2 — OCR إلا ما لقاش نص
+    if len(text.strip()) < 50:
+        print("Trying OCR...")
+        try:
+            images = convert_from_path(
+                pdf_path,
+                dpi=200,
+                poppler_path=POPPLER_PATH
+            )
+            for image in images:
+                ocr_text = pytesseract.image_to_string(image, lang='fra+eng')
+                text += ocr_text + " "
+            print(f"OCR extracted: {len(text)} chars")
+        except Exception as e:
+            print(f"OCR error: {e}")
+
+    return text.strip()
 
 @router.post("/apply")
 def apply(
@@ -22,10 +63,9 @@ def apply(
     with open(cv_path, "wb") as buffer:
         shutil.copyfileobj(cv.file, buffer)
 
-    cv_text = ""
-    with pdfplumber.open(cv_path) as pdf:
-        for page in pdf.pages:
-            cv_text += page.extract_text() or ""
+    cv_text = extract_text_from_pdf(cv_path)
+    print(f"Total text extracted: {len(cv_text)} chars")
+    print(f"Preview: {cv_text[:300]}")
 
     conn = get_connection()
     cur = conn.cursor()
