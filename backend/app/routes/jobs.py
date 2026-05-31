@@ -1,72 +1,142 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.database import get_connection
+from typing import Optional
+from app.database import get_connection, release_connection
 
 router = APIRouter()
 
-class JobData(BaseModel):
+class JobCreate(BaseModel):
     titre: str
-    description: str
+    description: Optional[str] = ""
     competences: str
+    statut: Optional[str] = "active"
 
-class JobUpdate(BaseModel):
-    titre: str
-    description: str
-    competences: str
-
-@router.get("/")
+# ─── GET ALL JOBS ─────────────────────────────────────
+@router.get("/jobs/")
 def get_jobs():
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id, titre, description, competences, statut FROM jobs")
-    jobs = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [
-        {
-            "id": j[0],
-            "titre": j[1],
-            "description": j[2],
-            "competences": j[3],
-            "statut": j[4]
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, titre, description, competences, statut FROM jobs ORDER BY id DESC"
+        )
+        rows = cur.fetchall()
+        cur.close()
+        return [
+            {
+                "id": r[0],
+                "titre": r[1],
+                "description": r[2] or "",
+                "competences": r[3],
+                "statut": r[4]
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_connection(conn)
+
+# ─── GET ONE JOB ──────────────────────────────────────
+@router.get("/jobs/{job_id}")
+def get_job(job_id: int):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, titre, description, competences, statut FROM jobs WHERE id = %s",
+            (job_id,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        if not row:
+            raise HTTPException(status_code=404, detail="Offre non trouvée")
+        return {
+            "id": row[0],
+            "titre": row[1],
+            "description": row[2] or "",
+            "competences": row[3],
+            "statut": row[4]
         }
-        for j in jobs
-    ]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_connection(conn)
 
-@router.post("/")
-def create_job(data: JobData):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO jobs (titre, description, competences) VALUES (%s, %s, %s) RETURNING id",
-        (data.titre, data.description, data.competences)
-    )
-    job_id = cur.fetchone()[0]
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"message": "Poste créé avec succès", "job_id": job_id}
+# ─── CREATE JOB ───────────────────────────────────────
+@router.post("/jobs/")
+def create_job(job: JobCreate):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO jobs (titre, description, competences, statut)
+               VALUES (%s, %s, %s, %s) RETURNING id""",
+            (job.titre, job.description, job.competences, job.statut)
+        )
+        job_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        return {"message": "Offre créée", "job_id": job_id}
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_connection(conn)
 
-@router.put("/{job_id}")
-def update_job(job_id: int, data: JobUpdate):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE jobs SET titre = %s, description = %s, competences = %s WHERE id = %s",
-        (data.titre, data.description, data.competences, job_id)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"message": "Poste mis à jour"}
+# ─── UPDATE JOB ───────────────────────────────────────
+@router.put("/jobs/{job_id}")
+def update_job(job_id: int, job: JobCreate):
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """UPDATE jobs
+               SET titre = %s, description = %s,
+                   competences = %s, statut = %s
+               WHERE id = %s""",
+            (job.titre, job.description, job.competences, job.statut, job_id)
+        )
+        conn.commit()
+        cur.close()
+        return {"message": "Offre mise à jour"}
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_connection(conn)
 
-@router.delete("/{job_id}")
+# ─── DELETE JOB ───────────────────────────────────────
+@router.delete("/jobs/{job_id}")
 def delete_job(job_id: int):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM applications WHERE job_id = %s", (job_id,))
-    cur.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"message": "Poste supprimé"}
+    conn = None
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Supprimer les candidats liés d'abord
+        cur.execute(
+            "DELETE FROM applications WHERE job_id = %s",
+            (job_id,)
+        )
+        cur.execute(
+            "DELETE FROM candidates WHERE job_id = %s",
+            (job_id,)
+        )
+        cur.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
+        conn.commit()
+        cur.close()
+        return {"message": "Offre supprimée"}
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_connection(conn)

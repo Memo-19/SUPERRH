@@ -1,33 +1,53 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import create_tables
-from app.routes.auth import router as auth_router
-from app.routes.jobs import router as jobs_router
-from app.routes.candidates import router as candidates_router
-from app.routes.applications import router as applications_router
+from dotenv import load_dotenv
+import os
 
-app = FastAPI(title="ATS API", version="1.0.0")
+load_dotenv()
+
+from app.database import create_tables
+from app.routes import auth, jobs, candidates, applications
+
+app = FastAPI(
+    title="SuperRH ATS API",
+    description="Plateforme ATS avec IA — Projet PFE",
+    version="1.0.0"
+)
+
+# ─── CORS ────────────────────────────────────────────
+origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
+# ─── ROUTES ──────────────────────────────────────────
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(auth.router, prefix="",      tags=["Users"])
+app.include_router(jobs.router, prefix="",      tags=["Jobs"])
+app.include_router(candidates.router, prefix="", tags=["Candidates"])
+app.include_router(applications.router, prefix="", tags=["Applications"])
+
+# ─── STARTUP ─────────────────────────────────────────
 @app.on_event("startup")
 def startup():
     create_tables()
-
-app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-app.include_router(jobs_router, prefix="/jobs", tags=["Jobs"])
-app.include_router(candidates_router, prefix="/candidates", tags=["Candidates"])
-app.include_router(applications_router, prefix="/applications", tags=["Applications"])
+    print("🚀 SuperRH API démarrée!")
 
 @app.get("/")
 def root():
-    return {"message": "ATS API is running!"}
+    return {
+        "message": "SuperRH ATS API",
+        "version": "1.0.0",
+        "status": "running"
+    }
 
 @app.get("/health")
 def health():

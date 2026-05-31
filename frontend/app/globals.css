@@ -1,13 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ═══════════════════════════════════════
+   CSS VARIABLES
+═══════════════════════════════════════ */
+:root {
+  --wedge:       #4b738d;
+  --wedge-light: #5581a6;
+  --wedge-glow:  rgba(75,115,141,0.5);
+  --wedge-soft:  rgba(75,115,141,0.15);
+  --bg-dark:     #060d13;
+  --bg-card:     rgba(255,255,255,0.04);
+  --border:      rgba(255,255,255,0.08);
 }
 
+/* ═══════════════════════════════════════
+   BASE STYLES
+═══════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body {
-  background-color: #0F172A;
-  color: #e2e8f0;
   font-family: 'Inter', sans-serif;
+  background-color: #060d13;
+  color: #f1f5f9;
+  overflow-x: hidden;
+}
+body.light {
+  background-color: #f0f6fa;
+  color: #0f1e2b;
+}
+
+/* ═══════════════════════════════════════
+   GLASS COMPONENTS
+═══════════════════════════════════════ */
+.glass-dark {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.glass-light {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(75,115,141,0.15);
+}
+.glass-wedge {
+  background: rgba(75,115,141,0.08);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(75,115,141,0.2);
+}
+
+/* ═══════════════════════════════════════
+   GLOW EFFECTS
+═══════════════════════════════════════ */
+.glow-border {
+  border: 1px solid rgba(75,115,141,0.4);
+  box-shadow: 0 0 15px rgba(75,115,141,0.2), inset 0 0 15px rgba(75,115,141,0.05);
+}
+.glow-text {
+  color: #5581a6;
+  text-shadow: 0 0 20px rgba(75,115,141,0.8);
+}
+.glow-dot {
+  width: 8px; height: 8px;
+  background: #4b738d;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #4b738d, 0 0 16px rgba(75,115,141,0.5);
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════
+   SKELETON LOADING
+═══════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(75,115,141,0.1)  50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+  border-radius: 8px;
+}
+.skeleton-light {
+  background: linear-gradient(90deg,
+    rgba(75,115,141,0.08) 25%,
+    rgba(75,115,141,0.18) 50%,
+    rgba(75,115,141,0.08) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+  border-radius: 8px;
+}
+
+/* ═══════════════════════════════════════
+   NEOMORPHISM BUTTONS
+═══════════════════════════════════════ */
+.neo-btn-dark {
+  background: #0d1f2d;
+  box-shadow: 6px 6px 12px #04090d, -3px -3px 8px #1a3347;
+  border: none;
+  transition: all 0.2s;
+}
+.neo-btn-dark:hover {
+  box-shadow: 4px 4px 8px #04090d, -2px -2px 6px #1a3347;
+}
+.neo-btn-dark:active {
+  box-shadow: inset 4px 4px 8px #04090d, inset -2px -2px 6px #1a3347;
+}
+.neo-btn-light {
+  background: #e8f4fd;
+  box-shadow: 5px 5px 12px #c5d8e8, -3px -3px 8px #ffffff;
+  border: none;
+  transition: all 0.2s;
+}
+.neo-btn-light:hover {
+  box-shadow: 3px 3px 8px #c5d8e8, -2px -2px 6px #ffffff;
+}
+
+/* ═══════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(75,115,141,0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(75,115,141,0.6); }
+
+/* ═══════════════════════════════════════
+   KEYFRAMES
+═══════════════════════════════════════ */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(75,115,141,0.4); }
+  50%       { box-shadow: 0 0 20px rgba(75,115,141,0.8), 0 0 40px rgba(75,115,141,0.3); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+@keyframes fadeUp {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
